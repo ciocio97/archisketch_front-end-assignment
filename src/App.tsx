@@ -1,17 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { RENDERING_URL } from './data/ResourceURL';
+import data from './data/test.json';
 import styled from 'styled-components';
 import axios from 'axios';
-import './App.css';
+import { saveAs } from 'file-saver';
 
-const Container = styled.div`
+export const Container = styled.div`
   width: 100vw;
 `
-const Header = styled.div`
+export const Header = styled.div`
   width: 100%;
   border-bottom: 1px solid rgba(235, 235, 235, 0.8);
 `
-const Button_close = styled.button`
+export const Button = styled.button`
+  height: 30px;
+  margin: 2px;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+`
+export const ButtonClose = styled.button`
   width: 45px;
   height: 32px;
   border: none;
@@ -19,6 +26,16 @@ const Button_close = styled.button`
   margin: 8px;
   font-weight: 700;
   cursor: pointer;
+`
+export const ImageInButton = styled.img`
+  height: 100%;
+`
+const Label = styled.label`
+  display: flex;
+  align-items: center;
+  font-size: 0.8em;
+  font-weight: 300;
+  margin-left: 5px;
 `
 const Main = styled.div`
   width: inherit;
@@ -32,7 +49,17 @@ const NavBar = styled.div`
   grid-gap: 5px;
   grid-auto-rows: minmax(30px, auto);
 `
-const Text_light = styled.p`
+const ContainerSelectAll = styled.div`
+  grid-row: 1;
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: flex-start;
+  align-items: center;
+`
+const SelectAllBox = styled.input`
+
+`
+const TextLight = styled.p`
   grid-row: 1;
   font-size: 0.8em;
   font-weight: 300;
@@ -40,7 +67,7 @@ const Text_light = styled.p`
   flex-flow: row wrap;
   align-items: center;
 `
-const Text_bold = styled.p`
+const TextBold = styled.p`
   grid-row: 1;
   font-weight: 800;
   display: flex;
@@ -48,7 +75,7 @@ const Text_bold = styled.p`
   justify-content: center;
   align-items: center;
 `
-const Container_selectBox = styled.div`
+const ContainerSelectBox = styled.div`
   grid-row: 1;
   display: flex;
   flex-flow: row wrap;
@@ -59,26 +86,22 @@ const SelectBox = styled.select`
   width: 50px;
   margin-right: 5px;
 `
-const Container_images = styled.div`
+const ContainerImages = styled.div`
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  grid-gap: 10px;
+  grid-template-columns: repeat(4, 1fr);
+  grid-gap: 15px;
 `
-const Image_hover = styled.div`
+const ImageWrapper = styled.div`
   width: 100%;
   cursor: pointer;
 `
-const Image_wrapper = styled.div`
-  width: 100%;
-  cursor: pointer;
-`
-const Image_thumbnail = styled.div`
+const ImageThumbnail = styled.div`
   position: relative;
   padding-top: 65%;
   overflow: hidden;
 `
-const Image_thumbnail_center = styled.div`
+const ImageThumbnailCenter = styled.div`
   position: absolute;
   top: 0;
   left: 0;
@@ -88,70 +111,257 @@ const Image_thumbnail_center = styled.div`
   -webkit-transform: translate(50%, 50%);
   -ms-transform: translate(50%, 50%);
 `
-const Image = styled.img`
+const ImageRender = styled.img`
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
+  border-radius: 3px;
   transform: translate(-50%, -50%);
   -webkit-transform: translate(-50%, -50%);
   -ms-transform: translate(-50%, -50%);
+  ${ImageWrapper}:hover & {
+    filter: brightness(50%);
+  }
 `
-
+const ImageCheckBox = styled.input`
+  position: absolute;
+  z-index: 10;
+  top: 5%;
+  left: 5%;
+  opacity: 0;
+  ${ImageWrapper}:hover & {
+    opacity: 100%;
+  }
+  ${props => props.checked && `
+    opacity: 100%;
+  `}
+`
+const ContainerImageInfo = styled.div`
+  position: absolute;
+  z-index: 10;
+  top: 5%;
+  right: 3%;
+  display: flex;
+  flex-flow: column wrap;
+  align-items: flex-end;
+`
+const ImageInfoButton = styled.button`
+  width: 27px;
+  height: 20px;
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: space-between;
+  align-items: center;
+  border: none;
+  cursor: pointer;
+  background-color: transparent;
+  opacity: 0;
+  ${ImageWrapper}:hover & {
+    opacity: 100%;
+  }
+`
+const Dot = styled.div`
+  width: 3px;
+  height: 3px;
+  border-radius: 100px;
+  background-color: #FFF;
+  opacity: 0;
+  ${ImageWrapper}:hover & {
+    opacity: 100%;
+  }
+`
+const ImageInfoBox = styled.div`
+  border-radius: 3px;
+  background-color: #FFF;
+`
+const ImageInfoBoxList = styled.div`
+  font-size: 0.9em;
+  font-weight: 300;
+  padding: 8px 7px;
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+`
 
 function App() {
 
-  const [renderImageArr, setRenderImageArr] = useState<any[]|null>(null);
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number|null>(null);
+  const [renderImageArr, setRenderImageArr] = useState<any[]>([]);
+  const [currImageIndex, setCurrImageIndex] = useState<number|null>(null);
+  const [selectedImageArr, setSelectedImageArr] = useState<number[]>([]);
+  const [isImageInfoBoxOpen, setIsImageInfoBoxOpen] = useState<boolean>(false);
+  const [isAllImageSelected, setIsAllImageSelected] = useState<boolean>(false);
+
+  console.log(selectedImageArr);
+
+  const handleImageInfoBox = (index: number, boolean:boolean) => {
+    setIsImageInfoBoxOpen(boolean);
+    setCurrImageIndex(index);
+  };
+
+  const handleCheckingAllImage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    let newArr: any[] = [];
+    // const target = event.target as HTMLInputElement;
+    const isChecked = event.target.checked;
+    if(isChecked){
+      const length = renderImageArr?.length || 0;
+      newArr = Array.from({ length }, (value, index) => index);
+    }
+    setSelectedImageArr(newArr);
+    setIsAllImageSelected((prev) => !prev);
+  };
+
+  const handleCheckingImage = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    // const target = event.target as HTMLInputElement;
+    const isChecked = event.target.checked;
+    if(isChecked){
+      setSelectedImageArr((prev) => {
+        return prev?.concat(index);
+      });
+    } else {
+      setSelectedImageArr((prev) => {
+        const newArr = prev.slice();
+        const indexForRemove = prev.indexOf(index);
+        newArr.splice(indexForRemove, 1);
+        return newArr;
+      });
+      setIsAllImageSelected(false);
+    }
+  };
+
+  const uncheckedAllImages = () => {
+    setSelectedImageArr([]);
+  };
+
+  const deleteImage = () => {
+    setRenderImageArr((prev) => {
+      if(isAllImageSelected){
+        return [];
+      } else {
+        const newArr = prev.slice();
+        selectedImageArr.forEach((index) => {
+          newArr?.splice(index, 1);
+        })
+        return newArr;
+      }
+    });
+    setSelectedImageArr([]);
+    setIsAllImageSelected(false);
+  };
+
+  const downloadImages = () => {
+    selectedImageArr.forEach((index) => {
+      saveAs(`${renderImageArr[index]._id}`, `archisketch render image ${index}.png`);
+    })
+  }
 
   useEffect(() => {
-    axios({
-      method: 'get',
-      url: RENDERING_URL
-    })
-    .then((res) => {
-      if(res.status === 200){
-        setRenderImageArr(res.data.renderings);
-      }
-    })
-    .catch((err) => {
-      console.log(err);
-    })
-  });
+    // axios({
+    //   method: 'get',
+    //   url: RENDERING_URL
+    // })
+    // .then((res) => {
+    //   if(res.status === 200){
+    //     setRenderImageArr(res.data.renderings);
+    //   }
+    // })
+    // .catch((err) => {
+    //   console.log(err);
+    // })
+    setRenderImageArr(data.renderings);
+  }, []);
 
   return (
     <>
       <Container>
         <Header>
-          <Button_close>X</Button_close>
+          <ButtonClose>X</ButtonClose>
         </Header>
       </Container>
       <Main>
         <NavBar>
-          <Text_light>{renderImageArr?.length} 개의 렌더샷</Text_light>
-          <Text_bold>갤러리</Text_bold>
-          <Container_selectBox>
-            <SelectBox name="모든 렌더샷"></SelectBox>
-            <SelectBox name="모든 화질"></SelectBox>
-          </Container_selectBox>
+          {selectedImageArr.length ? 
+            <ContainerSelectAll>
+              <TextLight>{selectedImageArr.length} render image(s) selected</TextLight>
+              <Label>
+                <SelectAllBox 
+                  type="checkbox" 
+                  onChange={handleCheckingAllImage}
+                  checked={isAllImageSelected ? true : false}
+                />
+                  Select All
+                </Label>
+            </ContainerSelectAll>
+          :
+            <TextLight>{renderImageArr?.length} rendering(s)</TextLight>
+          }
+          <TextBold>Gallery</TextBold>
+          {selectedImageArr.length ? 
+            <ContainerSelectBox>
+              <Button onClick={downloadImages}>
+                <ImageInButton src="img/downloadIcon.png"/>
+              </Button>
+              <Button onClick={deleteImage}>
+                <ImageInButton src="img/trashBinIcon.png"/>
+              </Button>
+              <Button onClick={uncheckedAllImages}>Deselect</Button>
+            </ContainerSelectBox> 
+          :
+            <ContainerSelectBox>
+              <SelectBox name="renderType">
+                <option value="">All Renderings</option>
+                <option value="">First Person</option>
+                <option value="">Top View</option>
+                <option value="">Panorama</option>
+              </SelectBox>
+              <SelectBox name="resolutionType">
+                <option value="">All Resolutions</option>
+                <option value="">Standard</option>
+                <option value="">2k</option>
+                <option value="">3k</option>
+                <option value="">4k</option>
+              </SelectBox>
+            </ContainerSelectBox>
+          }
         </NavBar>
-        <Container_images>
+        <ContainerImages>
           {renderImageArr?.map((image, index) => {
             return (
-              <Image_wrapper 
-                onMouseEnter={() => setSelectedImageIndex(index)}
-                onMouseLeave={() => setSelectedImageIndex(null)}
-              >
-                <Image_thumbnail>
-                  <Image_thumbnail_center>
-                    <Image src={image._id}/>
-                  </Image_thumbnail_center>
-                </Image_thumbnail>
-              </Image_wrapper>
+              <ImageWrapper onMouseLeave={() => handleImageInfoBox(index, false)}>
+                <ImageThumbnail>
+                  <ImageCheckBox 
+                    type="checkbox" 
+                    onChange={(e) => handleCheckingImage(e, index)}
+                    checked={
+                      selectedImageArr.indexOf(index) !== -1 || 
+                      isAllImageSelected ?
+                      true : false
+                    }
+                    />
+                  <ContainerImageInfo onClick={() => handleImageInfoBox(index, true)}> 
+                    <ImageInfoButton>
+                      <Dot/>
+                      <Dot/>
+                      <Dot/>
+                    </ImageInfoButton>
+                    {isImageInfoBoxOpen && currImageIndex === index ?  
+                      <ImageInfoBox>
+                        <ImageInfoBoxList>Download</ImageInfoBoxList>
+                        <ImageInfoBoxList>Delete</ImageInfoBoxList>
+                      </ImageInfoBox> 
+                      :
+                      null
+                    }
+                  </ContainerImageInfo>
+                  <ImageThumbnailCenter>
+                    <ImageRender src={image._id}/>
+                  </ImageThumbnailCenter>
+                </ImageThumbnail>
+              </ImageWrapper>
             );
           })}
-        </Container_images>
+        </ContainerImages>
       </Main>
     </>
   );
