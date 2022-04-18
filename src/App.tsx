@@ -1,35 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { RENDERING_URL } from './data/ResourceURL';
-import data from './data/test.json';
-import styled from 'styled-components';
 import axios from 'axios';
+import data from './data/test.json';
+import Modal from './component/modal';
+import ImageInfoDetail from './page/ImageInfoDetail';
+import GlobalStyle, {
+  Container, 
+  Header, 
+  Button, 
+  ImageInButton, 
+  ButtonClose
+} from './globalStyle';
+import styled from 'styled-components';
 import { saveAs } from 'file-saver';
 
-export const Container = styled.div`
-  width: 100vw;
-`
-export const Header = styled.div`
-  width: 100%;
-  border-bottom: 1px solid rgba(235, 235, 235, 0.8);
-`
-export const Button = styled.button`
-  height: 30px;
-  margin: 2px;
-  cursor: pointer;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-`
-export const ButtonClose = styled.button`
-  width: 45px;
-  height: 32px;
-  border: none;
-  border-radius: 5px;
-  margin: 8px;
-  font-weight: 700;
-  cursor: pointer;
-`
-export const ImageInButton = styled.img`
-  height: 100%;
-`
 const Label = styled.label`
   display: flex;
   align-items: center;
@@ -192,8 +176,10 @@ function App() {
   const [selectedImageArr, setSelectedImageArr] = useState<number[]>([]);
   const [isImageInfoBoxOpen, setIsImageInfoBoxOpen] = useState<boolean>(false);
   const [isAllImageSelected, setIsAllImageSelected] = useState<boolean>(false);
+  const [isClickedImage, setIsClickedImage] = useState<boolean>(false);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
-  console.log(selectedImageArr);
+  console.log(currImageIndex);
 
   const handleImageInfoBox = (index: number, boolean:boolean) => {
     setIsImageInfoBoxOpen(boolean);
@@ -202,7 +188,6 @@ function App() {
 
   const handleCheckingAllImage = (event: React.ChangeEvent<HTMLInputElement>) => {
     let newArr: any[] = [];
-    // const target = event.target as HTMLInputElement;
     const isChecked = event.target.checked;
     if(isChecked){
       const length = renderImageArr?.length || 0;
@@ -213,7 +198,6 @@ function App() {
   };
 
   const handleCheckingImage = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
-    // const target = event.target as HTMLInputElement;
     const isChecked = event.target.checked;
     if(isChecked){
       setSelectedImageArr((prev) => {
@@ -234,27 +218,42 @@ function App() {
     setSelectedImageArr([]);
   };
 
-  const deleteImage = () => {
+  const handleModal = () => {
+    setIsModalOpen((prev) => !prev);
+  };
+
+  const deleteImage = (index?: number|null) => {
     setRenderImageArr((prev) => {
+      const newArr = prev.slice();
       if(isAllImageSelected){
         return [];
-      } else {
-        const newArr = prev.slice();
-        selectedImageArr.forEach((index) => {
-          newArr?.splice(index, 1);
-        })
+      } else if(typeof index === 'number') {
+        newArr[index]._id = null;
         return newArr;
+      } else {
+        selectedImageArr.forEach((index) => {
+          newArr[index]._id = null;
+        })
       }
+      return newArr;
     });
     setSelectedImageArr([]);
     setIsAllImageSelected(false);
   };
 
-  const downloadImages = () => {
-    selectedImageArr.forEach((index) => {
+  const downloadImages = (index?:number|null) => {
+    if(typeof index === 'number'){
       saveAs(`${renderImageArr[index]._id}`, `archisketch render image ${index}.png`);
-    })
-  }
+    } else {
+      selectedImageArr.forEach((index) => {
+        saveAs(`${renderImageArr[index]._id}`, `archisketch render image ${index}.png`);
+      })
+    }
+  };
+
+  const handleImageClick = () => {
+    setIsClickedImage((prev) => !prev);
+  };
 
   useEffect(() => {
     // axios({
@@ -274,95 +273,118 @@ function App() {
 
   return (
     <>
-      <Container>
-        <Header>
-          <ButtonClose>X</ButtonClose>
-        </Header>
-      </Container>
-      <Main>
-        <NavBar>
-          {selectedImageArr.length ? 
-            <ContainerSelectAll>
-              <TextLight>{selectedImageArr.length} render image(s) selected</TextLight>
-              <Label>
-                <SelectAllBox 
-                  type="checkbox" 
-                  onChange={handleCheckingAllImage}
-                  checked={isAllImageSelected ? true : false}
-                />
-                  Select All
-                </Label>
-            </ContainerSelectAll>
-          :
-            <TextLight>{renderImageArr?.length} rendering(s)</TextLight>
+      <GlobalStyle/>
+      {isClickedImage ? 
+        <ImageInfoDetail 
+          renderImageArr={renderImageArr}
+          currImageIndex={currImageIndex}
+          handleImageClick={handleImageClick}
+          downloadImages={downloadImages}
+          deleteImage={deleteImage}
+        />
+        :
+        <>
+          {isModalOpen ? 
+            <Modal 
+              deleteImage={deleteImage} 
+              handleModal={handleModal}
+              handleImageClick={handleImageClick}
+            /> 
+            : 
+            null
           }
-          <TextBold>Gallery</TextBold>
-          {selectedImageArr.length ? 
-            <ContainerSelectBox>
-              <Button onClick={downloadImages}>
-                <ImageInButton src="img/downloadIcon.png"/>
-              </Button>
-              <Button onClick={deleteImage}>
-                <ImageInButton src="img/trashBinIcon.png"/>
-              </Button>
-              <Button onClick={uncheckedAllImages}>Deselect</Button>
-            </ContainerSelectBox> 
-          :
-            <ContainerSelectBox>
-              <SelectBox name="renderType">
-                <option value="">All Renderings</option>
-                <option value="">First Person</option>
-                <option value="">Top View</option>
-                <option value="">Panorama</option>
-              </SelectBox>
-              <SelectBox name="resolutionType">
-                <option value="">All Resolutions</option>
-                <option value="">Standard</option>
-                <option value="">2k</option>
-                <option value="">3k</option>
-                <option value="">4k</option>
-              </SelectBox>
-            </ContainerSelectBox>
-          }
-        </NavBar>
-        <ContainerImages>
-          {renderImageArr?.map((image, index) => {
-            return (
-              <ImageWrapper onMouseLeave={() => handleImageInfoBox(index, false)}>
-                <ImageThumbnail>
-                  <ImageCheckBox 
-                    type="checkbox" 
-                    onChange={(e) => handleCheckingImage(e, index)}
-                    checked={
-                      selectedImageArr.indexOf(index) !== -1 || 
-                      isAllImageSelected ?
-                      true : false
-                    }
+          <GlobalStyle/>
+          <Container>
+            <Header>
+              <ButtonClose>X</ButtonClose>
+            </Header>
+          </Container>
+          <Main>
+            <NavBar>
+              {selectedImageArr.length ? 
+                <ContainerSelectAll>
+                  <TextLight>{selectedImageArr.length} render image(s) selected</TextLight>
+                  <Label>
+                    <SelectAllBox 
+                      type="checkbox" 
+                      onChange={handleCheckingAllImage}
+                      checked={isAllImageSelected ? true : false}
                     />
-                  <ContainerImageInfo onClick={() => handleImageInfoBox(index, true)}> 
-                    <ImageInfoButton>
-                      <Dot/>
-                      <Dot/>
-                      <Dot/>
-                    </ImageInfoButton>
-                    {isImageInfoBoxOpen && currImageIndex === index ?  
-                      <ImageInfoBox>
-                        <ImageInfoBoxList>Download</ImageInfoBoxList>
-                        <ImageInfoBoxList>Delete</ImageInfoBoxList>
-                      </ImageInfoBox> 
-                      :
-                      null
-                    }
-                  </ContainerImageInfo>
-                  <ImageThumbnailCenter>
-                    <ImageRender src={image._id}/>
-                  </ImageThumbnailCenter>
-                </ImageThumbnail>
-              </ImageWrapper>
-            );
-          })}
-        </ContainerImages>
-      </Main>
+                      Select All
+                    </Label>
+                </ContainerSelectAll>
+              :
+                <TextLight>{renderImageArr?.filter((el) => el._id).length} rendering(s)</TextLight>
+              }
+              <TextBold>Gallery</TextBold>
+              {selectedImageArr.length ? 
+                <ContainerSelectBox>
+                  <Button onClick={() => downloadImages()}>
+                    <ImageInButton src="img/downloadIcon.png"/>
+                  </Button>
+                  <Button onClick={handleModal}>
+                    <ImageInButton src="img/trashBinIcon.png"/>
+                  </Button>
+                  <Button onClick={uncheckedAllImages}>Deselect</Button>
+                </ContainerSelectBox> 
+              :
+                <ContainerSelectBox>
+                  <SelectBox name="renderType">
+                  </SelectBox>
+                  <SelectBox name="resolutionType">
+                  </SelectBox>
+                </ContainerSelectBox>
+              }
+            </NavBar>
+            <ContainerImages>
+              {renderImageArr?.map((image, index) => {
+                if(image._id){
+                  return (
+                    <ImageWrapper 
+                      onMouseLeave={() => handleImageInfoBox(index, false)}
+                      onMouseEnter={() => handleImageInfoBox(index, false)}
+                    >
+                      <ImageThumbnail>
+                        <ImageCheckBox 
+                          type="checkbox" 
+                          onChange={(e) => handleCheckingImage(e, index)}
+                          checked={
+                            selectedImageArr.indexOf(index) !== -1 || 
+                            isAllImageSelected ?
+                            true : false
+                          }
+                          />
+                        <ContainerImageInfo onClick={() => handleImageInfoBox(index, true)}> 
+                          <ImageInfoButton>
+                            <Dot/>
+                            <Dot/>
+                            <Dot/>
+                          </ImageInfoButton>
+                          {isImageInfoBoxOpen && currImageIndex === index ?  
+                            <ImageInfoBox>
+                              <ImageInfoBoxList onClick={() => downloadImages(index)}>
+                                Download
+                              </ImageInfoBoxList>
+                              <ImageInfoBoxList onClick={() => deleteImage(index)}>
+                                Delete
+                              </ImageInfoBoxList>
+                            </ImageInfoBox> 
+                            :
+                            null
+                          }
+                        </ContainerImageInfo>
+                        <ImageThumbnailCenter>
+                          <ImageRender src={image._id} onClick={handleImageClick}/>
+                        </ImageThumbnailCenter>
+                      </ImageThumbnail>
+                    </ImageWrapper>
+                  );
+                } else return null;
+              })}
+            </ContainerImages>
+          </Main>
+        </> 
+      }
     </>
   );
 }

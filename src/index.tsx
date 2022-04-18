@@ -1,14 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './index.css';
 import App from './App';
-import ImageInfoDetail from './ImageInfoDetail';
+import ImageInfoDetail from './page/ImageInfoDetail';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
   <React.StrictMode>
-    <ImageInfoDetail />
+    <App />
   </React.StrictMode>
 );
